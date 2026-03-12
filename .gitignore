@@ -11,6 +11,9 @@ server/.env
 client/dist/
 client/build/
 
+# Vite cache
+client/.vite/
+
 # Data store – contains fetched posts, exclude from version control
 server/reddit_posts.json
 

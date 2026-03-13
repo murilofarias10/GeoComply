@@ -1,22 +1,33 @@
 @import "tailwindcss";
 
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: #1e293b;
-}
-::-webkit-scrollbar-thumb {
-  background: #475569;
-  border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #64748b;
+/* ── GeoComply brand tokens ── */
+@theme {
+  --color-gc-blue:   #0041ED;
+  --color-gc-orange: #FF600F;
 }
 
-/* Smooth animations */
-* {
-  transition: background-color 0.15s ease, border-color 0.15s ease;
+/* Class-based dark mode — toggled via .dark on the root div */
+@variant dark (&:where(.dark, .dark *));
+
+/* CSS variables for SVG map fills (Tailwind classes can't reach SVG attrs) */
+:root {
+  --map-state-fill:   #e2e8f0;
+  --map-state-stroke: #cbd5e1;
+  --map-bg:           #f8fafc;
 }
+.dark {
+  --map-state-fill:   #1e293b;
+  --map-state-stroke: #334155;
+  --map-bg:           #020617;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track  { background: #e2e8f0; }
+::-webkit-scrollbar-thumb  { background: #94a3b8; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #64748b; }
+.dark ::-webkit-scrollbar-track  { background: #1e293b; }
+.dark ::-webkit-scrollbar-thumb  { background: #475569; }
+.dark ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+* { transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease; }

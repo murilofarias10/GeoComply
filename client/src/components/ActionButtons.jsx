@@ -39,7 +39,7 @@ export default function ActionButtons({ loading, onFetch, onAnalyze, onRefresh }
         <button
           onClick={() => openModal("fetch")}
           disabled={loading.fetch}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-900 disabled:text-blue-400
+          className="flex items-center gap-2 bg-gc-blue hover:bg-gc-blue/80 disabled:bg-gc-blue/20 disabled:text-gc-blue/40
             text-white text-sm font-medium px-5 py-2.5 rounded-lg cursor-pointer disabled:cursor-not-allowed"
         >
           {loading.fetch ? (
@@ -61,7 +61,7 @@ export default function ActionButtons({ loading, onFetch, onAnalyze, onRefresh }
         <button
           onClick={() => openModal("analyze")}
           disabled={loading.analyze}
-          className="flex items-center gap-2 bg-violet-600 hover:bg-violet-500 disabled:bg-violet-900 disabled:text-violet-400
+          className="flex items-center gap-2 bg-gc-orange hover:bg-gc-orange/80 disabled:bg-gc-orange/20 disabled:text-gc-orange/40
             text-white text-sm font-medium px-5 py-2.5 rounded-lg cursor-pointer disabled:cursor-not-allowed"
         >
           {loading.analyze ? (
@@ -83,8 +83,9 @@ export default function ActionButtons({ loading, onFetch, onAnalyze, onRefresh }
         <button
           onClick={onRefresh}
           disabled={loading.refresh}
-          className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 disabled:bg-slate-800 disabled:text-slate-500
-            text-white text-sm font-medium px-5 py-2.5 rounded-lg cursor-pointer disabled:cursor-not-allowed"
+          className="flex items-center gap-2 bg-slate-200 hover:bg-slate-300 disabled:bg-slate-100 disabled:text-slate-400
+            dark:bg-slate-700 dark:hover:bg-slate-600 dark:disabled:bg-slate-800 dark:disabled:text-slate-500
+            text-slate-700 dark:text-white text-sm font-medium px-5 py-2.5 rounded-lg cursor-pointer disabled:cursor-not-allowed"
         >
           {loading.refresh ? (
             <>
@@ -102,7 +103,7 @@ export default function ActionButtons({ loading, onFetch, onAnalyze, onRefresh }
           )}
         </button>
 
-        <div className="ml-auto text-xs text-slate-500">
+        <div className="ml-auto text-xs text-slate-500 dark:text-slate-500">
           Last updated: {new Date().toLocaleTimeString()}
         </div>
       </div>

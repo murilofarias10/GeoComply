@@ -12,6 +12,7 @@ export default defineConfig({
       "/fetch": "http://localhost:5000",
       "/analyze": "http://localhost:5000",
       "/stats": "http://localhost:5000",
+      "/auth": "http://localhost:5000",
     },
   },
 });

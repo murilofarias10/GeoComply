@@ -13,6 +13,24 @@ app.use(cors());
 app.use(express.json());
 
 // ─────────────────────────────────────────────
+// POST /auth/verify  – Validate action password
+// ─────────────────────────────────────────────
+app.post("/auth/verify", (req, res) => {
+  const { password } = req.body;
+  const expected = process.env.PASSWORD_PROTECTION;
+
+  if (!expected) {
+    return res.status(500).json({ success: false, error: "Password protection is not configured on the server." });
+  }
+
+  if (!password || password !== expected) {
+    return res.status(401).json({ success: false, error: "Incorrect password." });
+  }
+
+  res.json({ success: true });
+});
+
+// ─────────────────────────────────────────────
 // GET /posts  – Return all stored posts
 // ─────────────────────────────────────────────
 app.get("/posts", (req, res) => {

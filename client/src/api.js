@@ -33,3 +33,12 @@ export async function getStats() {
   const { data } = await API.get("/stats");
   return data;
 }
+
+/**
+ * Verify the action password against the server.
+ * Throws with a user-facing message if incorrect.
+ */
+export async function verifyPassword(password) {
+  const { data } = await API.post("/auth/verify", { password });
+  return data;
+}

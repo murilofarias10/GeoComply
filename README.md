@@ -1,5 +1,9 @@
 # GAS – GeoAlert System iGaming
 
+<p align="center">
+  <img src="images/Brand.png" alt="GAS Brand Logo" width="180" />
+</p>
+
 A full-stack intelligence dashboard that monitors Reddit posts related to the U.S. iGaming industry, classifies them using OpenAI GPT, and surfaces geolocation alerts with a US map visualization.
 
 ## Architecture

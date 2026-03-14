@@ -161,7 +161,7 @@ export default function App() {
 
         <main className="max-w-screen-2xl mx-auto px-6 py-6 space-y-6">
           <ActionButtons loading={loading} onFetch={handleFetch} onAnalyze={handleAnalyze} onRefresh={handleRefresh} />
-          <KpiCards stats={stats} />
+          <KpiCards stats={stats} posts={posts} subreddits={SUBREDDITS} />
           <Filters
             filters={filters}
             setFilters={setFilters}

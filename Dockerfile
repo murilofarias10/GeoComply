@@ -4,7 +4,8 @@ FROM node:20-alpine AS frontend-builder
 WORKDIR /app/client
 
 COPY client/package*.json ./
-RUN npm ci
+COPY client/.npmrc ./
+RUN npm ci --legacy-peer-deps
 
 COPY client/ ./
 RUN npm run build

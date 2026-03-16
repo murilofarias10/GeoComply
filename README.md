@@ -6,17 +6,25 @@
 
 A full-stack intelligence dashboard that monitors Reddit posts related to the U.S. iGaming industry, classifies them using OpenAI GPT, and surfaces geolocation alerts with a US map visualization. Post data is persisted in a **Supabase (PostgreSQL)** database.
 
+---
+
 ## Architecture
+
+### Project Structure
 
 ```
 GAS/
+├── Dockerfile                # Multi-stage Docker build (frontend → backend)
+├── render.yaml               # Render deployment config
+├── .dockerignore
 ├── server/                   # Node.js + Express backend
-│   ├── server.js             # Express app & API routes
+│   ├── server.js             # Express app, API routes & static file serving
 │   ├── redditService.js      # RSS fetching + Supabase read/write
 │   ├── openaiService.js      # OpenAI GPT-4o-mini classification
 │   ├── .env                  # Your real credentials (never commit this)
 │   └── .env.example          # Template — copy to .env and fill in values
 └── client/                   # React + Vite + Tailwind frontend
+    ├── .npmrc                # legacy-peer-deps for react-simple-maps compat
     └── src/
         ├── App.jsx            # Main GAS dashboard
         ├── api.js             # API client
@@ -29,6 +37,8 @@ GAS/
             └── Toast.jsx
 ```
 
+### System Flow
+
 ```
                     ┌─────────────┐
                     │    USER     │
@@ -37,15 +47,17 @@ GAS/
                            ▼
               ┌────────────────────────┐
               │  GAS DASHBOARD         │
-              │  (Frontend – port 3000)│
+              │  (React – static build)│
               └────────────┬───────────┘
                             │
-              HTTP (proxy to 5000)
+                   API calls (same origin)
                             │
                             ▼
               ┌────────────────────────┐
-              │  EXPRESS API           │
-              │  (Backend – port 5000) │
+              │  EXPRESS SERVER        │
+              │  (port 10000)          │
+              │  • Serves React build  │
+              │  • REST API            │
               └───┬──────────┬─────────┘
                   │          │
         ┌─────────┘          └──────────────┐
@@ -58,26 +70,42 @@ GAS/
 └───────────────────┘
 ```
 
-## Database Schema
+> **Production note:** The React app is compiled to static files during the Docker build and served directly by Express — there is no separate frontend server in production. Both the UI and the API run on a single port (`10000`).
 
-Posts are stored in the `reddit_posts` table in Supabase:
+---
 
-| Column | Type | Description |
-|--------|------|-------------|
-| `id` | TEXT (PK) | Reddit post ID |
-| `title` | TEXT | Post title |
-| `text` | TEXT | Post body (HTML-stripped) |
-| `subreddit` | TEXT | Source subreddit |
-| `author` | TEXT | Reddit username |
-| `created_utc` | BIGINT | Post creation time (Unix timestamp) |
-| `url` | TEXT | Direct Reddit URL |
-| `classification` | TEXT | AI classification result |
-| `alert_level` | TEXT | HIGH / MEDIUM / LOW |
-| `reason` | TEXT | AI explanation for classification |
-| `analyzed_at` | TIMESTAMPTZ | When AI analysis was run |
-| `state` | TEXT | Detected US state (2-letter code or null) |
+## Deployment (Render)
 
-## Setup
+The project ships as a **single Docker container** deployed on [Render](https://render.com).
+
+### Docker build (multi-stage)
+
+| Stage | Base image | What it does |
+|-------|-----------|--------------|
+| `frontend-builder` | `node:20-alpine` | Installs deps and runs `vite build` |
+| `production` | `node:20-alpine` | Runs Express; copies the compiled React `dist/` as static files |
+
+### Render config (`render.yaml`)
+
+```yaml
+services:
+  - type: web
+    name: geocomply-reddit-monitor
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    envVars:
+      - key: OPENAI_API_KEY   # set in Render dashboard
+      - key: SUPABASE_URL     # set in Render dashboard
+      - key: SUPABASE_KEY     # set in Render dashboard
+      - key: PASSWORD_PROTECTION  # set in Render dashboard
+```
+
+All secrets are injected as environment variables from the Render dashboard — **nothing sensitive is baked into the image**.
+
+---
+
+## Local Development Setup
 
 ### 1. Get API credentials
 
@@ -90,14 +118,14 @@ Posts are stored in the `reddit_posts` table in Supabase:
 **Supabase (required for data persistence):**
 1. Go to https://supabase.com and create a project
 2. From **Project Settings → API**, copy your Project URL and Publishable (anon) key
-3. Create the `reddit_posts` table — run the SQL in the next section, or apply the migration via the Supabase MCP
+3. Create the `reddit_posts` table using the schema below
 
-### 2. Configure the server
+### 2. Configure environment variables
 
 ```bash
 cd server
 cp .env.example .env
-# Open .env and fill in OPENAI_API_KEY, SUPABASE_URL, and SUPABASE_KEY
+# Fill in OPENAI_API_KEY, SUPABASE_URL, SUPABASE_KEY, and PASSWORD_PROTECTION
 ```
 
 `.env.example` shows all required variables:
@@ -123,10 +151,35 @@ npm run dev    # or: npm start
 
 ```bash
 cd client
-npm install
+npm install --legacy-peer-deps
 npm run dev
-# Dashboard opens at http://localhost:3000
+# Dashboard opens at http://localhost:3000 (proxies API to port 5000)
 ```
+
+> `--legacy-peer-deps` is required because `react-simple-maps@3.0.0` has not yet declared support for React 19. The `client/.npmrc` file sets this automatically for Docker builds.
+
+---
+
+## Database Schema
+
+Posts are stored in the `reddit_posts` table in Supabase:
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | TEXT (PK) | Reddit post ID |
+| `title` | TEXT | Post title |
+| `text` | TEXT | Post body (HTML-stripped) |
+| `subreddit` | TEXT | Source subreddit |
+| `author` | TEXT | Reddit username |
+| `created_utc` | BIGINT | Post creation time (Unix timestamp) |
+| `url` | TEXT | Direct Reddit URL |
+| `classification` | TEXT | AI classification result |
+| `alert_level` | TEXT | HIGH / MEDIUM / LOW |
+| `reason` | TEXT | AI explanation for classification |
+| `analyzed_at` | TIMESTAMPTZ | When AI analysis was run |
+| `state` | TEXT | Detected US state (2-letter code or null) |
+
+---
 
 ## API Endpoints
 
@@ -139,6 +192,8 @@ npm run dev
 | POST | `/auth/verify` | Validate action password |
 | DELETE | `/posts/clear` | Clear all stored posts |
 
+---
+
 ## Dashboard Features
 
 - **Fetch Reddit Posts** – Pulls the latest posts from 5 iGaming subreddits via RSS; only new posts are inserted (existing classifications are never overwritten)
@@ -149,6 +204,8 @@ npm run dev
 - **Posts Table** – Filterable, paginated table with expandable AI reasoning
 - **Filters** – Filter by subreddit, classification, alert level, or keyword
 
+---
+
 ## Classification Categories
 
 | Category | Alert Level |
@@ -157,6 +214,8 @@ npm run dev
 | App bug | HIGH / MEDIUM / LOW |
 | User confusion | MEDIUM / LOW |
 | Other not relevant | LOW |
+
+---
 
 ## Monitored Subreddits (via FetchRSS)
 

@@ -1,7 +1,6 @@
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
-const path = require("path");
 
 const { fetchAndSavePosts, readPosts, savePosts } = require("./redditService");
 const { analyzePosts } = require("./openaiService");
@@ -33,9 +32,9 @@ app.post("/auth/verify", (req, res) => {
 // ─────────────────────────────────────────────
 // GET /posts  – Return all stored posts
 // ─────────────────────────────────────────────
-app.get("/posts", (req, res) => {
+app.get("/posts", async (req, res) => {
   try {
-    const posts = readPosts();
+    const posts = await readPosts();
     res.json({ success: true, posts, total: posts.length });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -67,7 +66,7 @@ app.post("/fetch", async (req, res) => {
 // ─────────────────────────────────────────────
 app.post("/analyze", async (req, res) => {
   try {
-    const posts = readPosts();
+    const posts = await readPosts();
 
     if (posts.length === 0) {
       return res.status(400).json({
@@ -91,7 +90,7 @@ app.post("/analyze", async (req, res) => {
       process.stdout.write(`\r  Progress: ${current}/${total}`);
     });
 
-    savePosts(updated);
+    await savePosts(updated);
     console.log(`\n✅ Analysis complete. ${stats.analyzed} posts classified.`);
 
     res.json({
@@ -108,9 +107,9 @@ app.post("/analyze", async (req, res) => {
 // ─────────────────────────────────────────────
 // GET /stats  – Aggregate KPI data for dashboard
 // ─────────────────────────────────────────────
-app.get("/stats", (req, res) => {
+app.get("/stats", async (req, res) => {
   try {
-    const posts = readPosts();
+    const posts = await readPosts();
 
     const stats = {
       total_posts: posts.length,
@@ -148,9 +147,9 @@ app.get("/stats", (req, res) => {
 // ─────────────────────────────────────────────
 // DELETE /posts/clear  – Clear all stored posts
 // ─────────────────────────────────────────────
-app.delete("/posts/clear", (req, res) => {
+app.delete("/posts/clear", async (req, res) => {
   try {
-    savePosts([]);
+    await savePosts([]);
     res.json({ success: true, message: "All posts cleared." });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });

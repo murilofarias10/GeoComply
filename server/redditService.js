@@ -1,9 +1,11 @@
 const axios = require("axios");
-const fs = require("fs");
-const path = require("path");
 const { XMLParser } = require("fast-xml-parser");
+const { createClient } = require("@supabase/supabase-js");
 
-const DATA_FILE = path.join(__dirname, "reddit_posts.json");
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_KEY
+);
 
 // RSS feeds from fetchrss.com mapped to their subreddit names
 const RSS_FEEDS = [
@@ -123,12 +125,13 @@ async function fetchFeed({ url, subreddit }) {
     alert_level: null,
     reason: null,
     analyzed_at: null,
+    state: null,
   }));
 }
 
 /**
  * Main entry point: fetch all RSS feeds, merge with existing data,
- * deduplicate by post id, persist to disk.
+ * deduplicate by post id, persist to Supabase.
  */
 async function fetchAndSavePosts() {
   let allNewPosts = [];
@@ -145,55 +148,63 @@ async function fetchAndSavePosts() {
     }
   }
 
-  // Load existing posts and merge (preserve classifications already done)
-  let existing = [];
-  try {
-    existing = JSON.parse(fs.readFileSync(DATA_FILE, "utf-8"));
-  } catch {
-    existing = [];
+  // Get existing IDs so we don't overwrite classifications
+  const incomingIds = allNewPosts.map((p) => p.id);
+  const { data: existingRows } = await supabase
+    .from("reddit_posts")
+    .select("id")
+    .in("id", incomingIds);
+
+  const existingIds = new Set((existingRows || []).map((r) => r.id));
+  const newOnly = allNewPosts.filter((p) => !existingIds.has(p.id));
+
+  if (newOnly.length > 0) {
+    const { error } = await supabase.from("reddit_posts").insert(newOnly);
+    if (error) throw new Error(`Supabase insert failed: ${error.message}`);
   }
 
-  const existingMap = new Map(existing.map((p) => [p.id, p]));
-  const existingIds = new Set(existing.map((p) => p.id));
-
-  for (const post of allNewPosts) {
-    if (!existingMap.has(post.id)) {
-      existingMap.set(post.id, post);
-    }
-    // Preserve existing classification if post was already analyzed
-  }
-
-  const truly_new = allNewPosts.filter((p) => !existingIds.has(p.id)).length;
-
-  const merged = Array.from(existingMap.values()).sort(
-    (a, b) => b.created_utc - a.created_utc
-  );
-
-  fs.writeFileSync(DATA_FILE, JSON.stringify(merged, null, 2));
+  const { count } = await supabase
+    .from("reddit_posts")
+    .select("*", { count: "exact", head: true });
 
   return {
-    total: merged.length,
-    new_posts: truly_new,
+    total: count || 0,
+    new_posts: newOnly.length,
     subreddits: RSS_FEEDS.map((f) => f.subreddit),
   };
 }
 
 /**
- * Read all stored posts from disk.
+ * Read all stored posts from Supabase, ordered by newest first.
  */
-function readPosts() {
-  try {
-    return JSON.parse(fs.readFileSync(DATA_FILE, "utf-8"));
-  } catch {
-    return [];
-  }
+async function readPosts() {
+  const { data, error } = await supabase
+    .from("reddit_posts")
+    .select("*")
+    .order("created_utc", { ascending: false });
+
+  if (error) throw new Error(`Supabase read failed: ${error.message}`);
+  return data || [];
 }
 
 /**
- * Persist an updated posts array to disk.
+ * Persist an updated posts array to Supabase (upsert by id).
  */
-function savePosts(posts) {
-  fs.writeFileSync(DATA_FILE, JSON.stringify(posts, null, 2));
+async function savePosts(posts) {
+  if (posts.length === 0) {
+    const { error } = await supabase
+      .from("reddit_posts")
+      .delete()
+      .neq("id", "");
+    if (error) throw new Error(`Supabase clear failed: ${error.message}`);
+    return;
+  }
+
+  const { error } = await supabase
+    .from("reddit_posts")
+    .upsert(posts, { onConflict: "id" });
+
+  if (error) throw new Error(`Supabase upsert failed: ${error.message}`);
 }
 
 module.exports = { fetchAndSavePosts, readPosts, savePosts };
